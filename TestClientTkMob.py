@@ -49,12 +49,12 @@ class UDPClientTk:
                                                                                                sticky=tk.W, pady=5)
 
         tk.Label(connection_frame, text="Хост:").grid(row=1, column=0, sticky=tk.W, padx=5)
-        self.host_entry = tk.Entry(connection_frame, width=15)
+        self.host_entry = tk.Entry(connection_frame, width=11)
         self.host_entry.grid(row=1, column=1, padx=5)
         self.host_entry.insert(0, self.server_host)
 
         tk.Label(connection_frame, text="Порт:").grid(row=1, column=2, sticky=tk.W, padx=5)
-        self.port_entry = tk.Entry(connection_frame, width=10)
+        self.port_entry = tk.Entry(connection_frame, width=5)
         self.port_entry.grid(row=1, column=3, padx=5)
         self.port_entry.insert(0, str(self.server_port))
 
