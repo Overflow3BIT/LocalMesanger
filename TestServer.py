@@ -1,4 +1,5 @@
-# server.py
+# TestServer.py
+import random
 import socket
 import threading
 import json
@@ -11,6 +12,72 @@ SERVER_PORT = 3333
 MAX_CLIENTS = 10
 PING_INTERVAL = 60
 PING_TIMEOUT = 10
+
+
+def is_valid_port(port_string):
+    port_string = port_string.strip()
+    if not port_string:
+        return False
+
+    if len(port_string) not in [4, 5]:
+        return False
+
+    if not port_string.isdigit():
+        return False
+
+    port = int(port_string)
+
+    if port < 1 or port > 65535:
+        return False
+
+    return True
+
+def is_valid_ip(ip_string):
+    parts = ip_string.split('.')
+
+    if len(parts) != 4:
+        return False
+
+    for part in parts:
+        if not part:
+            return False
+
+        if not part.isdigit():
+            return False
+
+        if len(part) > 1 and part[0] == '0':
+            return False
+
+        num = int(part)
+        if num < 0 or num > 255:
+            return False
+
+    return True
+
+SHS = True
+while SHS == True:
+    InpSH = str(input("SERVER_HOST: "))
+    if InpSH == "exit":
+        exit(1)
+    elif InpSH != "":
+        if is_valid_ip(InpSH):
+            SERVER_HOST = InpSH
+            SHS = False
+    else:
+        SHS = False
+
+SPS = True
+while SPS == True:
+    InpSP = str(input("SERVER_PORT: "))
+    if InpSP == "exit":
+        exit(1)
+    elif InpSP != "":
+        if is_valid_port(InpSP):
+            SERVER_PORT = int(InpSP)
+            SPS = False
+    else:
+        SERVER_PORT = random.randint(1000, 65535)
+        SPS = False
 
 # Запрещенные имена
 FORBIDDEN_NAMES = {'admin', 'administrator', 'server', 'root', 'system'}

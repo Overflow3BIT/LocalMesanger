@@ -1,4 +1,4 @@
-# client_tk.py
+# TestClientTkMob.py
 import asyncio
 import socket
 import json
@@ -15,7 +15,7 @@ class UDPClientTk:
     def __init__(self, root):
         self.root = root
         self.server_host = "127.0.0.1"
-        self.server_port = 3333
+        self.server_port = 11111
         self.running = True
         self.connected = False
         self.socket = None
