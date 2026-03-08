@@ -1,4 +1,4 @@
-# client_tk_mobile.py
+# client_tk.py
 import asyncio
 import socket
 import json
@@ -23,7 +23,7 @@ class UDPClientTk:
         self.ping_thread = None
         self.username = None
         self.client_port = None
-        self.running_ping = False
+        self.running_ping = False  # Флаг для управления автопингом
 
         # Очередь для сообщений от потока приема
         self.message_queue = Queue()
@@ -35,153 +35,100 @@ class UDPClientTk:
         self.ping_interval = 30
 
     def setup_ui(self):
-        """Настройка интерфейса для мобильных устройств"""
+        """Настройка интерфейса"""
         self.root.title("UDP Клиент")
+        self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}")
+        self.root.attributes("-fullscreen", True)
 
-        # Устанавливаем размер под мобильные экраны
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
+        # Фрейм для верхней панели подключения
+        connection_frame = tk.Frame(self.root, relief=tk.GROOVE, borderwidth=2)
+        connection_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
-        # Для телефонов делаем почти полный экран
-        if screen_width <= 480:  # Типичная ширина телефона
-            width = screen_width - 10
-            height = screen_height - 50
-        else:
-            width = 400
-            height = 650
+        # Настройки сервера
+        tk.Label(connection_frame, text="Настройки сервера:", font=("Arial", 10, "bold")).grid(row=0, column=0,
+                                                                                               columnspan=3,
+                                                                                               sticky=tk.W, pady=5)
 
-        self.root.geometry(f"{width}x{height}")
-
-        # Основной контейнер с прокруткой для всего интерфейса
-        main_canvas = tk.Canvas(self.root, highlightthickness=0)
-        scrollbar = tk.Scrollbar(self.root, orient="vertical", command=main_canvas.yview)
-        scrollable_frame = tk.Frame(main_canvas)
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all"))
-        )
-
-        main_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        main_canvas.configure(yscrollcommand=scrollbar.set)
-
-        main_canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-        # Привязка колесика мыши для прокрутки
-        def _on_mousewheel(event):
-            main_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-        main_canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
-        # Фрейм для верхней панели подключения (компактный)
-        connection_frame = tk.Frame(scrollable_frame, relief=tk.GROOVE, borderwidth=1, bg='#f0f0f0')
-        connection_frame.pack(side=tk.TOP, fill=tk.X, padx=3, pady=3)
-
-        # Заголовок настроек
-        tk.Label(connection_frame, text="Сервер:", font=("Arial", 9, "bold"),
-                 bg='#f0f0f0').pack(anchor=tk.W, padx=5, pady=(2, 0))
-
-        # Первая строка - хост и порт
-        server_row1 = tk.Frame(connection_frame, bg='#f0f0f0')
-        server_row1.pack(fill=tk.X, padx=5, pady=2)
-
-        tk.Label(server_row1, text="Хост:", font=("Arial", 8), bg='#f0f0f0').pack(side=tk.LEFT)
-        self.host_entry = tk.Entry(server_row1, width=12, font=("Arial", 8))
-        self.host_entry.pack(side=tk.LEFT, padx=(2, 5))
+        tk.Label(connection_frame, text="Хост:").grid(row=1, column=0, sticky=tk.W, padx=5)
+        self.host_entry = tk.Entry(connection_frame, width=15)
+        self.host_entry.grid(row=1, column=1, padx=5)
         self.host_entry.insert(0, self.server_host)
 
-        tk.Label(server_row1, text="Порт:", font=("Arial", 8), bg='#f0f0f0').pack(side=tk.LEFT)
-        self.port_entry = tk.Entry(server_row1, width=6, font=("Arial", 8))
-        self.port_entry.pack(side=tk.LEFT, padx=2)
+        tk.Label(connection_frame, text="Порт:").grid(row=1, column=2, sticky=tk.W, padx=5)
+        self.port_entry = tk.Entry(connection_frame, width=10)
+        self.port_entry.grid(row=1, column=3, padx=5)
         self.port_entry.insert(0, str(self.server_port))
 
-        self.update_server_btn = tk.Button(server_row1, text="Обн", font=("Arial", 7),
-                                           command=self.update_server_settings, height=1, width=4)
-        self.update_server_btn.pack(side=tk.RIGHT)
+        self.update_server_btn = tk.Button(connection_frame, text="Обновить", command=self.update_server_settings)
+        self.update_server_btn.grid(row=1, column=4, padx=5)
 
-        # Статус и кнопки управления в одной строке
-        control_frame = tk.Frame(scrollable_frame, bg='white')
-        control_frame.pack(side=tk.TOP, fill=tk.X, padx=3, pady=2)
+        # Статус и кнопки управления
+        status_frame = tk.Frame(self.root)
+        status_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
-        self.status_label = tk.Label(control_frame, text="● Не подключен",
-                                     fg="red", font=("Arial", 8), bg='white')
-        self.status_label.pack(side=tk.LEFT)
+        self.status_label = tk.Label(status_frame, text="Статус: Не подключен", fg="red", font=("Arial", 10))
+        self.status_label.pack(side=tk.LEFT, padx=10)
 
-        # Кнопки в строку
-        btn_frame = tk.Frame(control_frame, bg='white')
-        btn_frame.pack(side=tk.RIGHT)
+        # Кнопки управления
+        button_frame = tk.Frame(status_frame)
+        button_frame.pack(side=tk.RIGHT)
 
-        self.connect_btn = tk.Button(btn_frame, text="Подкл", command=self.connect_to_server,
-                                     bg="#90EE90", font=("Arial", 7), height=1, width=6)
-        self.connect_btn.pack(side=tk.LEFT, padx=1)
+        self.connect_btn = tk.Button(button_frame, text="Подключиться", command=self.connect_to_server, bg="lightgreen")
+        self.connect_btn.pack(side=tk.LEFT, padx=2)
 
-        self.disconnect_btn = tk.Button(btn_frame, text="Откл", command=self.disconnect_from_server,
-                                        state=tk.DISABLED, bg="#FFB6C1", font=("Arial", 7), height=1, width=6)
-        self.disconnect_btn.pack(side=tk.LEFT, padx=1)
+        self.disconnect_btn = tk.Button(button_frame, text="Отключиться", command=self.disconnect_from_server,
+                                        state=tk.DISABLED, bg="lightcoral")
+        self.disconnect_btn.pack(side=tk.LEFT, padx=2)
 
-        # Вторая строка кнопок
-        btn_frame2 = tk.Frame(scrollable_frame, bg='white')
-        btn_frame2.pack(side=tk.TOP, fill=tk.X, padx=3, pady=2)
+        self.users_btn = tk.Button(button_frame, text="Список пользователей", command=self.get_users_list)
+        self.users_btn.pack(side=tk.LEFT, padx=2)
 
-        self.users_btn = tk.Button(btn_frame2, text="Пользователи", command=self.get_users_list,
-                                   font=("Arial", 8), height=1)
-        self.users_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=1)
+        self.ping_btn = tk.Button(button_frame, text="Проверить пинг", command=self.check_ping_manual)
+        self.ping_btn.pack(side=tk.LEFT, padx=2)
 
-        self.ping_btn = tk.Button(btn_frame2, text="Пинг", command=self.check_ping_manual,
-                                  font=("Arial", 8), height=1)
-        self.ping_btn.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=1)
+        # Панель информации о клиенте
+        client_info_frame = tk.Frame(self.root, relief=tk.GROOVE, borderwidth=1)
+        client_info_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
-        # Информация о клиенте (компактная)
-        info_frame = tk.Frame(scrollable_frame, relief=tk.GROOVE, borderwidth=1, bg='#e6f3ff')
-        info_frame.pack(side=tk.TOP, fill=tk.X, padx=3, pady=2)
+        tk.Label(client_info_frame, text="Информация о клиенте:", font=("Arial", 9, "bold")).pack(anchor=tk.W, padx=5)
 
-        tk.Label(info_frame, text="Информация:", font=("Arial", 7, "bold"),
-                 bg='#e6f3ff').pack(anchor=tk.W, padx=2)
+        self.client_info_label = tk.Label(client_info_frame, text="Имя: не установлено | Порт клиента: не назначен")
+        self.client_info_label.pack(anchor=tk.W, padx=5, pady=2)
 
-        self.client_info_label = tk.Label(info_frame,
-                                          text="Имя: - | Порт: -",
-                                          font=("Arial", 7), bg='#e6f3ff', wraplength=350)
-        self.client_info_label.pack(anchor=tk.W, padx=5, pady=1)
+        # История сообщений
+        chat_frame = tk.LabelFrame(self.root, text="Чат", relief=tk.GROOVE, borderwidth=2)
+        chat_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # Чат
-        chat_frame = tk.LabelFrame(scrollable_frame, text="Чат", font=("Arial", 8, "bold"))
-        chat_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=3, pady=2)
+        self.chat_history = scrolledtext.ScrolledText(chat_frame, height=20, state='disabled', font=("Arial", 10))
+        self.chat_history.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        self.chat_history = scrolledtext.ScrolledText(chat_frame, height=15,
-                                                      state='disabled', font=("Arial", 9),
-                                                      wrap=tk.WORD)
-        self.chat_history.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+        # Панель ввода сообщений
+        input_frame = tk.Frame(self.root)
+        input_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
 
-        # Панель ввода сообщений (компактная)
-        input_frame = tk.Frame(scrollable_frame, bg='#f5f5f5')
-        input_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=3, pady=3)
+        tk.Label(input_frame, text="Сообщение:").pack(side=tk.LEFT, padx=(0, 5))
 
-        # Поле ввода и кнопка в одной строке
-        input_row = tk.Frame(input_frame, bg='#f5f5f5')
-        input_row.pack(fill=tk.X)
-
-        self.message_entry = tk.Entry(input_row, font=("Arial", 9))
-        self.message_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 2))
+        self.message_entry = tk.Entry(input_frame)
+        self.message_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self.message_entry.bind("<Return>", self.send_message_event)
         self.message_entry.config(state=tk.DISABLED)
 
-        self.send_btn = tk.Button(input_row, text="Отправить", command=self.send_message,
-                                  state=tk.DISABLED, bg="#4CAF50", fg="white",
-                                  font=("Arial", 8), width=8, height=1)
+        self.send_btn = tk.Button(input_frame, text="Отправить", command=self.send_message, state=tk.DISABLED)
         self.send_btn.pack(side=tk.RIGHT)
 
-        # Компактное меню через кнопки
-        menu_frame = tk.Frame(scrollable_frame, bg='white')
-        menu_frame.pack(side=tk.TOP, fill=tk.X, padx=3, pady=2)
+        # Меню
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
 
-        tk.Button(menu_frame, text="Настройки", command=self.show_server_settings,
-                  font=("Arial", 8), height=1).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=1)
-        tk.Button(menu_frame, text="О программе", command=self.show_about,
-                  font=("Arial", 8), height=1).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=1)
-        tk.Button(menu_frame, text="Выход", command=self.on_closing,
-                  font=("Arial", 8), height=1, bg="#FF4444", fg="white").pack(side=tk.LEFT, expand=True, fill=tk.X,
-                                                                              padx=1)
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Файл", menu=file_menu)
+        file_menu.add_command(label="Настройки сервера...", command=self.show_server_settings)
+        file_menu.add_separator()
+        file_menu.add_command(label="Выход", command=self.on_closing)
+
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Справка", menu=help_menu)
+        help_menu.add_command(label="О программе", command=self.show_about)
 
     def update_server_settings(self):
         """Обновить настройки сервера"""
@@ -211,25 +158,24 @@ class UDPClientTk:
             messagebox.showerror("Ошибка", "Порт должен быть числом")
 
     def show_server_settings(self):
-        """Открыть диалог настроек сервера (компактный)"""
+        """Открыть диалог настроек сервера"""
         settings_window = tk.Toplevel(self.root)
-        settings_window.title("Настройки")
-        settings_window.geometry("300x200")
+        settings_window.title("Настройки сервера")
+        settings_window.geometry("400x200")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
-        tk.Label(settings_window, text="Настройки сервера",
-                 font=("Arial", 12, "bold")).pack(pady=10)
+        tk.Label(settings_window, text="Настройки подключения", font=("Arial", 12, "bold")).pack(pady=10)
 
         frame = tk.Frame(settings_window)
-        frame.pack(pady=20, padx=20, fill=tk.X)
+        frame.pack(pady=20, padx=20)
 
-        tk.Label(frame, text="Хост:", width=10, anchor=tk.W).grid(row=0, column=0, pady=5, sticky=tk.W)
+        tk.Label(frame, text="Хост сервера:", width=15, anchor=tk.W).grid(row=0, column=0, pady=5, sticky=tk.W)
         host_entry = tk.Entry(frame, width=20)
         host_entry.grid(row=0, column=1, pady=5, padx=5)
         host_entry.insert(0, self.server_host)
 
-        tk.Label(frame, text="Порт:", width=10, anchor=tk.W).grid(row=1, column=0, pady=5, sticky=tk.W)
+        tk.Label(frame, text="Порт сервера:", width=15, anchor=tk.W).grid(row=1, column=0, pady=5, sticky=tk.W)
         port_entry = tk.Entry(frame, width=20)
         port_entry.grid(row=1, column=1, pady=5, padx=5)
         port_entry.insert(0, str(self.server_port))
@@ -238,37 +184,43 @@ class UDPClientTk:
             host = host_entry.get().strip()
             port_str = port_entry.get().strip()
 
-            if not host or not port_str:
-                messagebox.showerror("Ошибка", "Заполните все поля")
+            if not host:
+                messagebox.showerror("Ошибка", "Хост не может быть пустым")
+                return
+
+            if not port_str:
+                messagebox.showerror("Ошибка", "Порт не может быть пустым")
                 return
 
             try:
                 port = int(port_str)
                 if port < 1 or port > 65535:
-                    messagebox.showerror("Ошибка", "Порт 1-65535")
+                    messagebox.showerror("Ошибка", "Порт должен быть в диапазоне 1-65535")
                     return
 
                 self.server_host = host
                 self.server_port = port
 
+                # Обновляем поля в основном окне
                 self.host_entry.delete(0, tk.END)
                 self.host_entry.insert(0, host)
                 self.port_entry.delete(0, tk.END)
                 self.port_entry.insert(0, str(port))
 
-                self.queue_message('status', f"Сервер: {host}:{port}")
+                self.queue_message('status', f"Настройки сервера изменены: {host}:{port}")
                 settings_window.destroy()
 
             except ValueError:
                 messagebox.showerror("Ошибка", "Порт должен быть числом")
 
+        def cancel():
+            settings_window.destroy()
+
         button_frame = tk.Frame(settings_window)
         button_frame.pack(pady=20)
 
-        tk.Button(button_frame, text="Сохранить", command=save_settings,
-                  bg="lightgreen", width=10).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Отмена", command=settings_window.destroy,
-                  width=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Сохранить", command=save_settings, bg="lightgreen").pack(side=tk.LEFT, padx=10)
+        tk.Button(button_frame, text="Отмена", command=cancel).pack(side=tk.LEFT, padx=10)
 
     def add_message(self, message, color="black"):
         """Добавить сообщение в историю"""
@@ -288,6 +240,7 @@ class UDPClientTk:
                     text = data.get('text', '')
                     msg_time = data.get('time', '')
 
+                    # Не показываем свои сообщения
                     if from_user != self.username:
                         self.add_message(f"[{msg_time}] {from_user}: {text}")
 
@@ -318,21 +271,25 @@ class UDPClientTk:
     def create_socket(self):
         """Создание сокета"""
         try:
+            # Если сокет уже есть - закрываем его
             if self.socket:
                 try:
                     self.socket.close()
                 except:
                     pass
 
+            # Генерируем случайный порт
             self.client_port = random.randint(10000, 60000)
 
+            # Создаем сокет
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind(('0.0.0.0', self.client_port))
             self.socket.settimeout(2.0)
 
+            # Обновляем информацию о клиенте
             self.queue_message('client_info',
-                               f"Имя: {self.username if self.username else '-'} | Порт: {self.client_port}")
+                               f"Имя: {self.username if self.username else 'не установлено'} | Порт клиента: {self.client_port}")
 
             return True
 
@@ -348,9 +305,11 @@ class UDPClientTk:
             return None
 
         try:
+            # Отправляем сообщение
             server_address = (self.server_host, self.server_port)
             self.socket.sendto(message.encode('utf-8'), server_address)
 
+            # Ждем ответ с таймаутом
             start_time = time.time()
 
             while time.time() - start_time < timeout:
@@ -375,7 +334,7 @@ class UDPClientTk:
             return None
 
     def send_ping(self):
-        """Отправка ping и получение результата"""
+        """Отправка ping и получение результата (для авто-пинга)"""
         if not self.connected or not self.socket:
             return None
 
@@ -391,12 +350,11 @@ class UDPClientTk:
             return None
 
     def check_ping_manual(self):
-        """Ручная проверка пинга"""
+        """Ручная проверка пинга (по кнопке)"""
         if not self.connected:
             messagebox.showerror("Ошибка", "Нет подключения")
             return
 
-        self.queue_message('status', "Проверка пинга...")
         ping_time = self.send_ping()
 
         if ping_time is not None:
@@ -406,17 +364,22 @@ class UDPClientTk:
 
     def connect_to_server(self):
         """Подключение к серверу"""
+        # Проверяем настройки сервера
         host = self.host_entry.get().strip()
         port_str = self.port_entry.get().strip()
 
-        if not host or not port_str:
-            messagebox.showerror("Ошибка", "Заполните хост и порт сервера")
+        if not host:
+            messagebox.showerror("Ошибка", "Хост сервера не может быть пустым")
+            return
+
+        if not port_str:
+            messagebox.showerror("Ошибка", "Порт сервера не может быть пустым")
             return
 
         try:
             port = int(port_str)
             if port < 1 or port > 65535:
-                messagebox.showerror("Ошибка", "Порт должен быть 1-65535")
+                messagebox.showerror("Ошибка", "Порт должен быть в диапазоне 1-65535")
                 return
 
             self.server_host = host
@@ -428,32 +391,41 @@ class UDPClientTk:
 
         # Запрашиваем имя пользователя
         username = simpledialog.askstring("Подключение",
-                                          f"Подключение к {host}:{port}\n\nВведите имя (лат., 2-20 симв.):")
+                                          f"Подключение к {host}:{port}\n\nВведите имя пользователя:")
 
         if not username:
             return
 
         # Валидация имени
-        if len(username) < 2 or len(username) > 20:
-            messagebox.showerror("Ошибка", "Имя должно быть от 2 до 20 символов")
+        if len(username) < 2:
+            messagebox.showerror("Ошибка", "Имя должно быть не менее 2 символов")
             return
 
+        if len(username) > 20:
+            messagebox.showerror("Ошибка", "Имя должно быть не более 20 символов")
+            return
+
+        # Проверка на разрешенные символы
         allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
         if not all(c in allowed_chars for c in username):
-            messagebox.showerror("Ошибка", "Только латиница, цифры и _")
+            messagebox.showerror("Ошибка", "Только буквы латиницы, цифры и _")
             return
 
+        # Первый символ должен быть буквой
         if not username[0].isalpha():
             messagebox.showerror("Ошибка", "Имя должно начинаться с буквы")
             return
 
         self.username = username
 
+        # Создаем сокет
         if not self.create_socket():
             return False
 
+        # Формируем команду подключения
         connect_cmd = f"/connect {self.username}:{self.client_port}"
 
+        # Отправляем и ждем ответ
         response = self.send_and_wait(connect_cmd, timeout=5.0)
 
         if response:
@@ -462,10 +434,12 @@ class UDPClientTk:
                 self.update_ui_state()
                 self.queue_message('status', f"Подключен как {self.username} к {host}:{port}")
 
+                # Запускаем поток для приема сообщений
                 if self.receive_thread is None or not self.receive_thread.is_alive():
                     self.receive_thread = threading.Thread(target=self.receive_messages, daemon=True)
                     self.receive_thread.start()
 
+                # Запускаем автопинг
                 self.start_auto_ping()
 
                 return True
@@ -474,7 +448,7 @@ class UDPClientTk:
                 messagebox.showerror("Ошибка подключения", error_msg)
                 return False
         else:
-            messagebox.showerror("Ошибка", f"Сервер {host}:{port} не отвечает")
+            messagebox.showerror("Ошибка", f"Сервер {host}:{port} не ответил")
             return False
 
     def disconnect_from_server(self):
@@ -488,8 +462,9 @@ class UDPClientTk:
             self.connected = False
             self.username = None
             self.update_ui_state()
-            self.queue_message('status', f"Отключен от сервера")
+            self.queue_message('status', f"Отключен от сервера {self.server_host}:{self.server_port}")
 
+            # Останавливаем автопинг
             self.stop_auto_ping()
         else:
             self.connected = False
@@ -497,6 +472,7 @@ class UDPClientTk:
             self.update_ui_state()
             self.queue_message('status', "Отключен (без подтверждения)")
 
+            # Останавливаем автопинг
             self.stop_auto_ping()
 
         return True
@@ -511,11 +487,14 @@ class UDPClientTk:
             messagebox.showerror("Ошибка", "Нет подключения к серверу")
             return
 
+        # Очищаем поле ввода
         self.message_entry.delete(0, tk.END)
 
+        # Отображаем свое сообщение
         current_time = datetime.now().strftime("%H:%M:%S")
         self.add_message(f"[{current_time}] Вы: {message}")
 
+        # Отправляем на сервер
         response = self.send_and_wait(message, timeout=5.0)
 
         if not response:
@@ -524,10 +503,10 @@ class UDPClientTk:
     def send_message_event(self, event):
         """Обработчик события Enter"""
         self.send_message()
-        return "break"
+        return "break"  # Предотвращаем перенос строки
 
     def get_users_list(self):
-        """Получить список пользователей (компактный)"""
+        """Получить список пользователей"""
         if not self.connected:
             messagebox.showerror("Ошибка", "Нет подключения")
             return
@@ -540,15 +519,10 @@ class UDPClientTk:
             count = data.get('count', 0)
 
             users_window = tk.Toplevel(self.root)
-            users_window.title("Пользователи")
+            users_window.title(f"Список пользователей - {self.server_host}:{self.server_port}")
+            users_window.geometry("300x400")
 
-            # Компактный размер для телефона
-            screen_width = self.root.winfo_screenwidth()
-            width = min(300, screen_width - 40)
-            users_window.geometry(f"{width}x400")
-
-            tk.Label(users_window, text=f"Всего пользователей: {count}",
-                     font=("Arial", 10, "bold")).pack(pady=5)
+            tk.Label(users_window, text=f"Всего пользователей: {count}", font=("Arial", 10, "bold")).pack(pady=5)
 
             listbox = tk.Listbox(users_window, font=("Arial", 10))
             listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -560,9 +534,6 @@ class UDPClientTk:
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
             listbox.config(yscrollcommand=scrollbar.set)
             scrollbar.config(command=listbox.yview)
-
-            tk.Button(users_window, text="Закрыть",
-                      command=users_window.destroy).pack(pady=5)
 
         else:
             self.queue_message('error', "Не удалось получить список пользователей")
@@ -591,6 +562,7 @@ class UDPClientTk:
                             self.queue_message('system', msg_data)
 
                         elif msg_type == 'ping':
+                            # Автоответ на пинг от сервера
                             pong_msg = json.dumps({'type': 'pong', 'data': 'pong'})
                             self.socket.sendto(pong_msg.encode('utf-8'),
                                                (self.server_host, self.server_port))
@@ -630,21 +602,23 @@ class UDPClientTk:
             if not self.connected or not self.running_ping:
                 break
 
+            # Отправляем пинг
             ping_time = self.send_ping()
 
             if ping_time is not None:
                 failed_pings = 0
             else:
                 failed_pings += 1
+                self.queue_message('error', f"Автопинг не удался ({failed_pings}/{max_failed_pings})")
 
                 if failed_pings >= max_failed_pings:
-                    self.queue_message('error', "Потеря связи с сервером")
+                    self.queue_message('error', "Слишком много неудачных пингов. Проверьте соединение.")
                     break
 
     def update_ui_state(self):
         """Обновление состояния UI"""
         if self.connected:
-            self.status_label.config(text="● Подключен", fg="green")
+            self.status_label.config(text=f"Статус: Подключен как {self.username}", fg="green")
             self.connect_btn.config(state=tk.DISABLED)
             self.disconnect_btn.config(state=tk.NORMAL)
             self.users_btn.config(state=tk.NORMAL)
@@ -652,11 +626,12 @@ class UDPClientTk:
             self.send_btn.config(state=tk.NORMAL)
             self.message_entry.config(state=tk.NORMAL)
 
+            # Обновляем информацию о сервере
             self.host_entry.config(state=tk.DISABLED)
             self.port_entry.config(state=tk.DISABLED)
             self.update_server_btn.config(state=tk.DISABLED)
         else:
-            self.status_label.config(text="● Не подключен", fg="red")
+            self.status_label.config(text="Статус: Не подключен", fg="red")
             self.connect_btn.config(state=tk.NORMAL)
             self.disconnect_btn.config(state=tk.DISABLED)
             self.users_btn.config(state=tk.DISABLED)
@@ -664,6 +639,7 @@ class UDPClientTk:
             self.send_btn.config(state=tk.DISABLED)
             self.message_entry.config(state=tk.DISABLED)
 
+            # Разблокируем поля настроек
             self.host_entry.config(state=tk.NORMAL)
             self.port_entry.config(state=tk.NORMAL)
             self.update_server_btn.config(state=tk.NORMAL)
@@ -671,21 +647,21 @@ class UDPClientTk:
     def show_about(self):
         """Показать информацию о программе"""
         messagebox.showinfo("О программе",
-                            "UDP Клиент для мобильных устройств\n\n"
+                            "UDP Клиент с графическим интерфейсом\n\n"
                             "Функции:\n"
-                            "• Чат через UDP\n"
-                            "• Список пользователей\n"
-                            "• Проверка пинга\n"
-                            "• Автоподдержка соединения\n\n"
-                            f"Сервер: {self.server_host}:{self.server_port}")
+                            "- Настройка хоста и порта сервера\n"
+                            "- Подключение/отключение к серверу\n"
+                            "- Обмен сообщениями в реальном времени\n"
+                            "- Список активных пользователей\n"
+                            "- Проверка пинга\n"
+                            "- Автоматическое поддержание соединения\n\n"
+                            f"Текущий сервер: {self.server_host}:{self.server_port}")
 
     def on_closing(self):
         """Обработка закрытия окна"""
         if self.connected:
-            if messagebox.askyesno("Подтверждение", "Отключиться и выйти?"):
+            if messagebox.askyesno("Подтверждение", "Вы подключены к серверу. Отключиться перед выходом?"):
                 self.disconnect_from_server()
-            else:
-                return
 
         self.running = False
         self.stop_auto_ping()
