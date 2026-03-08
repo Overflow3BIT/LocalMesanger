@@ -38,7 +38,6 @@ class UDPClientTk:
         """Настройка интерфейса"""
         self.root.title("UDP Клиент")
         self.root.geometry("800x565")
-        self.root.attributes("-fullscreen", False)
 
         # Фрейм для верхней панели подключения
         connection_frame = tk.Frame(self.root, relief=tk.GROOVE, borderwidth=2)
@@ -50,12 +49,12 @@ class UDPClientTk:
                                                                                                sticky=tk.W, pady=5)
 
         tk.Label(connection_frame, text="Хост:").grid(row=1, column=0, sticky=tk.W, padx=5)
-        self.host_entry = tk.Entry(connection_frame, width=11)
+        self.host_entry = tk.Entry(connection_frame, width=15)
         self.host_entry.grid(row=1, column=1, padx=5)
         self.host_entry.insert(0, self.server_host)
 
         tk.Label(connection_frame, text="Порт:").grid(row=1, column=2, sticky=tk.W, padx=5)
-        self.port_entry = tk.Entry(connection_frame, width=5)
+        self.port_entry = tk.Entry(connection_frame, width=10)
         self.port_entry.grid(row=1, column=3, padx=5)
         self.port_entry.insert(0, str(self.server_port))
 
@@ -104,7 +103,7 @@ class UDPClientTk:
         chat_frame = tk.LabelFrame(self.root, text="Чат", relief=tk.GROOVE, borderwidth=2)
         chat_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        self.chat_history = scrolledtext.ScrolledText(chat_frame, height=20, state='disabled', font=("Arial", 10))
+        self.chat_history = scrolledtext.ScrolledText(chat_frame, height=15, state='disabled', font=("Arial", 10))
         self.chat_history.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Панель ввода сообщений
