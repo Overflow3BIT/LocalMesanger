@@ -297,7 +297,7 @@ class UDPClientTk:
             self.socket = None
             return False
 
-    def send_and_wait(self, message, timeout=3.0):
+    def send_and_wait(self, message, timeout=10.0):
         """Отправка сообщения и ожидание ответа"""
         if not self.socket:
             self.queue_message('error', "Сокет не создан")
@@ -334,18 +334,17 @@ class UDPClientTk:
 
     def send_ping(self):
         """Отправка ping и получение результата (для авто-пинга)"""
-        if not self.connected or not self.socket:
+        if not self.connected:
+            messagebox.showerror("Ошибка", "Нет подключения")
             return None
 
-        ping_msg = json.dumps({'type': 'ping', 'data': 'ping'})
-        start_time = time.time()
+        ping_time = self.send_ping()
 
-        response = self.send_and_wait(ping_msg, timeout=2.0)
-
-        if response and response.get('type') == 'pong':
-            ping_time = int((time.time() - start_time) * 1000)
+        if ping_time is not None:
+            self.queue_message('ping_result', ping_time)
             return ping_time
         else:
+            self.queue_message('error', "Не удалось проверить пинг")
             return None
 
     def check_ping_manual(self):
@@ -455,7 +454,7 @@ class UDPClientTk:
         if not self.connected:
             return True
 
-        response = self.send_and_wait("/disconnect", timeout=3.0)
+        response = self.send_and_wait("/disconnect", timeout=5.0)
 
         if response and response.get('type') == 'response' and response.get('data') == 'DISCONNECTED':
             self.connected = False
@@ -510,7 +509,7 @@ class UDPClientTk:
             messagebox.showerror("Ошибка", "Нет подключения")
             return
 
-        response = self.send_and_wait("/users", timeout=3.0)
+        response = self.send_and_wait("/users", timeout=5.0)
 
         if response and response.get('type') == 'response':
             data = response.get('data', {})
