@@ -37,8 +37,8 @@ class UDPClientTk:
     def setup_ui(self):
         """Настройка интерфейса"""
         self.root.title("UDP Клиент")
-        self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}")
-        self.root.attributes("-fullscreen", True)
+        self.root.geometry("800x565")
+        self.root.attributes("-fullscreen", False)
 
         # Фрейм для верхней панели подключения
         connection_frame = tk.Frame(self.root, relief=tk.GROOVE, borderwidth=2)
@@ -50,40 +50,45 @@ class UDPClientTk:
                                                                                                sticky=tk.W, pady=5)
 
         tk.Label(connection_frame, text="Хост:").grid(row=1, column=0, sticky=tk.W, padx=5)
-        self.host_entry = tk.Entry(connection_frame, width=15)
+        self.host_entry = tk.Entry(connection_frame, width=11)
         self.host_entry.grid(row=1, column=1, padx=5)
         self.host_entry.insert(0, self.server_host)
 
         tk.Label(connection_frame, text="Порт:").grid(row=1, column=2, sticky=tk.W, padx=5)
-        self.port_entry = tk.Entry(connection_frame, width=10)
+        self.port_entry = tk.Entry(connection_frame, width=5)
         self.port_entry.grid(row=1, column=3, padx=5)
         self.port_entry.insert(0, str(self.server_port))
 
         self.update_server_btn = tk.Button(connection_frame, text="Обновить", command=self.update_server_settings)
         self.update_server_btn.grid(row=1, column=4, padx=5)
 
-        # Статус и кнопки управления
+        # Статус и кнопки управления - разделены на три строки
         status_frame = tk.Frame(self.root)
         status_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
+        # Первая строка - статус
         self.status_label = tk.Label(status_frame, text="Статус: Не подключен", fg="red", font=("Arial", 10))
-        self.status_label.pack(side=tk.LEFT, padx=10)
+        self.status_label.pack(anchor=tk.W, padx=10, pady=2)
 
-        # Кнопки управления
-        button_frame = tk.Frame(status_frame)
-        button_frame.pack(side=tk.RIGHT)
+        # Вторая строка - кнопки подключения/отключения
+        connect_row = tk.Frame(status_frame)
+        connect_row.pack(fill=tk.X, pady=2)
 
-        self.connect_btn = tk.Button(button_frame, text="Подключиться", command=self.connect_to_server, bg="lightgreen")
+        self.connect_btn = tk.Button(connect_row, text="Подключиться", command=self.connect_to_server, bg="lightgreen")
         self.connect_btn.pack(side=tk.LEFT, padx=2)
 
-        self.disconnect_btn = tk.Button(button_frame, text="Отключиться", command=self.disconnect_from_server,
+        self.disconnect_btn = tk.Button(connect_row, text="Отключиться", command=self.disconnect_from_server,
                                         state=tk.DISABLED, bg="lightcoral")
         self.disconnect_btn.pack(side=tk.LEFT, padx=2)
 
-        self.users_btn = tk.Button(button_frame, text="Список пользователей", command=self.get_users_list)
+        # Третья строка - дополнительные кнопки
+        actions_row = tk.Frame(status_frame)
+        actions_row.pack(fill=tk.X, pady=2)
+
+        self.users_btn = tk.Button(actions_row, text="Список пользователей", command=self.get_users_list)
         self.users_btn.pack(side=tk.LEFT, padx=2)
 
-        self.ping_btn = tk.Button(button_frame, text="Проверить пинг", command=self.check_ping_manual)
+        self.ping_btn = tk.Button(actions_row, text="Проверить пинг", command=self.check_ping_manual)
         self.ping_btn.pack(side=tk.LEFT, padx=2)
 
         # Панель информации о клиенте
@@ -92,7 +97,7 @@ class UDPClientTk:
 
         tk.Label(client_info_frame, text="Информация о клиенте:", font=("Arial", 9, "bold")).pack(anchor=tk.W, padx=5)
 
-        self.client_info_label = tk.Label(client_info_frame, text="Имя: не установлено | Порт клиента: не назначен")
+        self.client_info_label = tk.Label(client_info_frame, text="Имя: - | Порт: -")
         self.client_info_label.pack(anchor=tk.W, padx=5, pady=2)
 
         # История сообщений
